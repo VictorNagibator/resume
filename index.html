@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viktor Donskoi — psql resume</title>
+<meta name="description" content="Viktor Donskoi, C developer building PostgreSQL extensions. Interactive resume as a psql session. Виктор Донской, разработчик расширений PostgreSQL.">
+<meta property="og:title" content="Viktor Donskoi — psql resume">
+<meta property="og:description" content="C developer · PostgreSQL extensions. Type SQL to read my resume.">
+<meta property="og:image" content="photo.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23336791'/%3E%3Ctext x='5' y='22' font-family='monospace' font-size='16' fill='%23fff'%3E=%23%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --bg: #0a0f15;
+    --panel: #0f1620;
+    --bar: #151e2a;
+    --line: #223043;
+    --ink: #d7e3f0;
+    --dim: #7d8fa3;
+    --pg: #336791;
+    --blue: #82b1ff;
+    --green: #7ec699;
+    --yellow: #f0c674;
+    --red: #f07178;
+    --purple: #c792ea;
+    --mono: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; font-variant-ligatures: none; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px 16px 32px;
+    background:
+      radial-gradient(1200px 500px at 50% -200px, rgba(51,103,145,.35), transparent 70%),
+      var(--bg);
+  }
+  a { color: var(--blue); }
+  .top {
+    width: 100%; max-width: 1000px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .me { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 220px; }
+  .me img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--pg); }
+  .me h1 { font-size: 16px; margin: 0; font-weight: 700; }
+  .me p { margin: 0; color: var(--dim); font-size: 12.5px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    font: inherit; font-size: 12.5px;
+    background: var(--bar); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 11px; cursor: pointer; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { border-color: var(--pg); background: #1a2636; }
+  .btn.on { background: var(--pg); border-color: var(--pg); color: #fff; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg .btn { border: 0; border-radius: 0; }
+
+  .term {
+    width: 100%; max-width: 1000px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.5);
+    display: flex; flex-direction: column;
+    height: min(72vh, 760px);
+    min-height: 420px;
+    overflow: hidden;
+  }
+  .bar {
+    background: var(--bar);
+    padding: 9px 14px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--line);
+    color: var(--dim); font-size: 12px;
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .bar .title { margin-left: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar .score { margin-left: auto; color: var(--yellow); white-space: nowrap; }
+  .screen {
+    flex: 1; overflow: auto; position: relative;
+    padding: 14px 16px 18px;
+    cursor: text;
+  }
+  .blk { margin: 0; white-space: pre; font: inherit; }
+  .blk.wrap { white-space: pre-wrap; word-break: break-word; }
+  .echo .ps, .input-line .ps { color: var(--green); }
+  .notice { color: var(--yellow); }
+  .error { color: var(--red); }
+  .dim { color: var(--dim); }
+  .hl { color: var(--blue); }
+  .kw { color: var(--purple); }
+  .gap { height: 10px; }
+  a.cmd { color: var(--green); text-decoration: underline dotted; cursor: pointer; }
+  .input-line { display: flex; align-items: baseline; gap: 0; }
+  .input-line .ps { white-space: pre; }
+  .input-line input {
+    flex: 1; min-width: 0;
+    background: transparent; border: 0; outline: 0;
+    color: var(--ink); font: inherit; caret-color: var(--green);
+    padding: 0;
+  }
+  .chips {
+    width: 100%; max-width: 1000px;
+    margin-top: 14px;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  }
+  .chips .lbl { color: var(--dim); font-size: 12.5px; margin-right: 2px; }
+  .chip {
+    font: inherit; font-size: 12.5px;
+    background: transparent; color: var(--green);
+    border: 1px dashed #2f4a3a; border-radius: 999px;
+    padding: 4px 11px; cursor: pointer;
+  }
+  .chip:hover { background: rgba(126,198,153,.08); border-style: solid; }
+  .foot { margin-top: 18px; color: var(--dim); font-size: 12px; text-align: center; }
+  @media (max-width: 640px) {
+    body { font-size: 12px; padding: 14px 16px 24px; }
+    .input-line input { font-size: 16px; }
+    .term { height: 70vh; }
+    .bar .title { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="me">
+    <img src="photo.jpg" alt="">
+    <div>
+      <h1 id="h-name">Viktor Donskoi</h1>
+      <p id="h-role">C developer · PostgreSQL extensions</p>
+    </div>
+  </div>
+  <div class="actions">
+    <div class="seg"><button class="btn" data-lang="ru">RU</button><button class="btn" data-lang="en">EN</button></div>
+    <a class="btn" id="pdf-btn" href="Donskoi_Viktor_CV_RU.pdf" download>⬇ PDF</a>
+  </div>
+</div>
+
+<div class="term">
+  <div class="bar">
+    <span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span>
+    <span class="title">viktor@altstu: psql -d resume</span>
+    <span class="score" id="score"></span>
+  </div>
+  <div class="screen" id="screen">
+    <div id="out"></div>
+    <div class="input-line"><span class="ps" id="ps">resume=# </span><input id="in" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="SQL"></div>
+  </div>
+</div>
+
+<div class="chips" id="chips"></div>
+<div class="foot" id="foot"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- storage (optional) ---------------- */
+  function load(key, def) { try { var v = localStorage.getItem(key); return v === null ? def : JSON.parse(v); } catch (e) { return def; } }
+  function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} }
+
+  /* ---------------- i18n + data ---------------- */
+  var GH = 'https://github.com/VictorNagibator/';
+  var D = {
+    ru: {
+      htmlLang: 'ru', name: 'Виктор Донской', role: 'C/C++-разработчик · расширения PostgreSQL',
+      pdf: 'Donskoi_Viktor_CV_RU.pdf',
+      banner: 'psql (19.1, resume edition)\nВведите "help", чтобы получить справку. Или жмите на команды под терминалом.',
+      try: 'попробуйте:',
+      foot: 'Сделано без фреймворков. Данные проверены pg_integrity_checksums ✓',
+      help: [
+        ['help', 'эта справка'],
+        ['\\d', 'список таблиц'],
+        ['SELECT * FROM about_me;', 'кто я'],
+        ['\\dx', 'мои расширения PostgreSQL'],
+        ['SELECT * FROM projects;', 'проекты подробно'],
+        ['SELECT * FROM skills;', 'навыки'],
+        ['SELECT * FROM education;', 'образование'],
+        ['SELECT * FROM languages;', 'языки'],
+        ['SELECT * FROM contacts;', 'как связаться'],
+        ['SELECT * FROM achievements;', 'ваши ачивки на этом сайте'],
+        ['\\pdf', 'скачать резюме в PDF'],
+        ['\\lang en', 'switch to English'],
+        ['clear', 'очистить экран']
+      ],
+      helpFoot: 'Можно писать и свой SQL. Только не забывайте WHERE ;)',
+      about: [
+        ['name', 'Виктор Донской'],
+        ['role', 'C/C++-разработчик, расширения PostgreSQL'],
+        ['location', 'Барнаул · удалёнка или переезд'],
+        ['education', 'бакалавр ПИ с отличием (АлтГТУ), магистратура'],
+        ['published', 'расширения опубликованы в PGXN и PGEXT.CLOUD'],
+        ['status', 'ищу работу C/C++-разработчиком: СУБД, системная или backend-разработка']
+      ],
+      dx: [
+        ['pg_integrity_checksums', '12–19', 'проверка целостности данных'],
+        ['pg_achievements', '16–19', 'ачивки для пользователей PostgreSQL'],
+        ['pg_scheduler', '14–18', 'планировщик SQL- и shell-задач']
+      ],
+      dxHead: ['Name', 'PostgreSQL', 'Description'],
+      dxTitle: 'List of installed extensions',
+      projects: [
+        { name: 'pg_integrity_checksums', lang: 'C', what: 'Расширение, которое проверяет, что реплика, восстановленный бэкап или мигрированная база содержит в точности те же данные, что исходная.',
+          details: ['контрольные суммы ячейки, строки, таблицы, индекса и всей БД в физическом и логическом режимах',
+                    'логические суммы не меняются после pg_dump/restore, VACUUM FULL, REINDEX и переезда на другую архитектуру CPU',
+                    'находит отличающиеся строки; FNV-1a, CRC-32C, XXH3-64; параллельное сканирование; все 6 типов индексов',
+                    'CLI для проверки в CI-пайплайнах, Docker-образ, онлайн-документация',
+                    'CI на всех версиях PostgreSQL, codecov, CodeQL, бейдж OpenSSF Best Practices'],
+          published: 'PGXN, PGEXT.CLOUD', link: GH + 'pg_integrity_checksums' },
+        { name: 'pg_achievements', lang: 'C', what: 'Игровые ачивки для пользователей PostgreSQL: расширение следит за действиями ролей и выдаёт бронзу, серебро, золото и платину.',
+          details: ['68 достижений приходят как NOTICE прямо в psql, в той же сессии',
+                    'одни подталкивают к возможностям СУБД (EXPLAIN ANALYZE, рекурсивные CTE, оконные функции, партиционирование), другие беззлобно высмеивают ошибки вроде UPDATE без WHERE',
+                    'лидерборд и статистика по игрокам'],
+          published: 'PGXN, PGEXT.CLOUD', link: GH + 'pg_achievements' },
+        { name: 'pg_scheduler', lang: 'C', what: 'Планировщик SQL- и shell-задач, который работает прямо внутри базы.',
+          details: ['разовые и периодические задачи, повторы при ошибках с автоотключением',
+                    'журнал запусков: время, длительность, статус, текст ошибки',
+                    'фоновый процесс (background worker) сам находит и запускает задачи по расписанию'],
+          published: 'GitHub', link: GH + 'pg_scheduler' }
+      ],
+      projKeys: ['name', 'lang', 'what', 'details', 'published', 'link'],
+      skillsHead: ['category', 'skills'],
+      skills: [
+        ['languages', 'C, C++, SQL, Python, Java'],
+        ['databases', 'PostgreSQL, расширения PostgreSQL, PL/pgSQL, проектирование БД'],
+        ['engineering', 'ООП, SOLID, паттерны проектирования, системная архитектура, тестирование, рефакторинг, чтение чужого кода'],
+        ['tooling', 'Git, Linux, Bash, GitHub Actions, Docker, CMake, Qt, Django'],
+        ['ai tools', 'Claude Code, Codex, DeepSeek, AI-assisted разработка'],
+        ['also', 'математическое программирование, работа в команде']
+      ],
+      eduHead: ['degree', 'university', 'years', 'note'],
+      edu: [
+        ['Магистратура, ПИ', 'АлтГТУ', '2026–2028', 'в процессе'],
+        ['Бакалавриат, ПИ', 'АлтГТУ', '2022–2026', 'с отличием, все «отлично»']
+      ],
+      eduNote: 'ПИ — программная инженерия; АлтГТУ им. И. И. Ползунова',
+      langsHead: ['language', 'level'],
+      langs: [['русский', 'родной'], ['английский', 'B2'], ['французский', 'A2']],
+      contactsHead: ['channel', 'value'],
+      contacts: [
+        ['telegram', 'https://t.me/VictorNagibator'],
+        ['email', 'mailto:vityadonskoy2004@gmail.com'],
+        ['github', 'https://github.com/VictorNagibator'],
+        ['pdf', '\\pdf']
+      ],
+      tables: [['about_me', 'кто я'], ['projects', 'проекты'], ['skills', 'навыки'], ['education', 'образование'], ['languages', 'языки'], ['contacts', 'контакты'], ['achievements', 'ваши ачивки']],
+      relHead: ['Schema', 'Name', 'Type', 'Description'],
+      relTitle: 'List of relations',
+      ach: {
+        first: ['Hello, World', 'Выполнить первый запрос.'],
+        rtfm: ['RTFM', 'Прочитать справку.'],
+        explorer: ['Data Explorer', 'Посмотреть все таблицы резюме.'],
+        where: ['Forgot WHERE', 'UPDATE без WHERE. Классика.'],
+        drop: ['Nice Try', 'Попытаться удалить кандидата.'],
+        poly: ['Polyglot', 'Переключить язык.'],
+        pdf: ['Old School', 'Скачать PDF.'],
+        hire: ["Recruiter's Choice", 'Вызвать hire(). Лучшая ачивка.']
+      },
+      achHead: ['', 'achievement', 'how to unlock'],
+      unlocked: 'Achievement unlocked', total: 'Total score',
+      score: 'score',
+      langSwitched: 'Язык: русский.',
+      pdfLinks: 'PDF: Donskoi_Viktor_CV_RU.pdf · English: Donskoi_Viktor_CV_EN.pdf',
+      dropErr: 'ERROR:  must be owner of candidate viktor\nHINT:  Кандидатов не удаляют. Их нанимают: SELECT hire(\'viktor\');',
+      deleteErr: 'ERROR:  cannot delete from table "skills": skills are append-only',
+      hireMsg: 'NOTICE:  Отличный выбор! Напишите мне:\n         https://t.me/VictorNagibator\n         mailto:vityadonskoy2004@gmail.com',
+      quit: 'Нельзя просто так выйти из резюме. Но можно написать мне: https://t.me/VictorNagibator',
+      syntaxHint: 'HINT:  Введите help, чтобы увидеть список команд.',
+      noTable: 'не существует',
+      updateHint: 'HINT:  Вы обновили все строки. На проде за такое бьют.',
+      insertMsg: 'INSERT 0 1\nNOTICE:  Спасибо! Но лучше напишите в Telegram: https://t.me/VictorNagibator',
+      chips: [['about_me', 'SELECT * FROM about_me;'], ['\\dx', '\\dx'], ['projects', 'SELECT * FROM projects;'], ['skills', 'SELECT * FROM skills;'], ['education', 'SELECT * FROM education;'], ['languages', 'SELECT * FROM languages;'], ['contacts', 'SELECT * FROM contacts;'], ['achievements', 'SELECT * FROM achievements;'], ['help', 'help']]
+    },
+    en: {
+      htmlLang: 'en', name: 'Viktor Donskoi', role: 'C/C++ developer · PostgreSQL extensions',
+      pdf: 'Donskoi_Viktor_CV_EN.pdf',
+      banner: 'psql (19.1, resume edition)\nType "help" for help. Or click the commands below the terminal.',
+      try: 'try:',
+      foot: 'No frameworks were harmed. Data verified by pg_integrity_checksums ✓',
+      help: [
+        ['help', 'this help'],
+        ['\\d', 'list tables'],
+        ['SELECT * FROM about_me;', 'who I am'],
+        ['\\dx', 'my PostgreSQL extensions'],
+        ['SELECT * FROM projects;', 'projects in detail'],
+        ['SELECT * FROM skills;', 'skills'],
+        ['SELECT * FROM education;', 'education'],
+        ['SELECT * FROM languages;', 'languages'],
+        ['SELECT * FROM contacts;', 'get in touch'],
+        ['SELECT * FROM achievements;', 'your achievements on this site'],
+        ['\\pdf', 'download the PDF'],
+        ['\\lang ru', 'переключить на русский'],
+        ['clear', 'clear the screen']
+      ],
+      helpFoot: 'You can type your own SQL too. Just don\'t forget the WHERE ;)',
+      about: [
+        ['name', 'Viktor Donskoi'],
+        ['role', 'C/C++ developer, PostgreSQL extensions'],
+        ['location', 'Barnaul, Russia · open to remote and relocation'],
+        ['education', 'BSc in Software Engineering with honours, MSc in progress'],
+        ['published', 'my extensions are on PGXN and PGEXT.CLOUD'],
+        ['status', 'looking for a C/C++ role: databases, systems or backend']
+      ],
+      dx: [
+        ['pg_integrity_checksums', '12–19', 'data integrity verification'],
+        ['pg_achievements', '16–19', 'achievements for PostgreSQL users'],
+        ['pg_scheduler', '14–18', 'SQL and shell job scheduler']
+      ],
+      dxHead: ['Name', 'PostgreSQL', 'Description'],
+      dxTitle: 'List of installed extensions',
+      projects: [
+        { name: 'pg_integrity_checksums', lang: 'C', what: 'An extension that verifies a replica, a restored backup or a migrated database holds exactly the same data as the source.',
+          details: ['cell, row, table, index and database checksums in physical and logical modes',
+                    'logical checksums survive pg_dump/restore, VACUUM FULL, REINDEX and moves to another CPU architecture',
+                    'pinpoints differing rows; FNV-1a, CRC-32C, XXH3-64; parallel scanning; all 6 index types',
+                    'CLI for checks in CI pipelines, Docker image, online documentation',
+                    'CI on every supported PostgreSQL version, codecov, CodeQL, OpenSSF Best Practices badge'],
+          published: 'PGXN, PGEXT.CLOUD', link: GH + 'pg_integrity_checksums' },
+        { name: 'pg_achievements', lang: 'C', what: 'Game achievements for PostgreSQL users: the extension watches what roles do and hands out bronze, silver, gold and platinum.',
+          details: ['68 achievements arrive as a NOTICE right in psql, in the same session',
+                    'some nudge you toward database features (EXPLAIN ANALYZE, recursive CTEs, window functions, partitioning), others gently mock mistakes like an UPDATE without WHERE',
+                    'leaderboard and per-player statistics'],
+          published: 'PGXN, PGEXT.CLOUD', link: GH + 'pg_achievements' },
+        { name: 'pg_scheduler', lang: 'C', what: 'A scheduler for SQL and shell jobs that runs right inside the database.',
+          details: ['one-off and recurring jobs, retries on failure with automatic disabling',
+                    'execution log: time, duration, status, error message',
+                    'a background worker finds due jobs and runs them on schedule'],
+          published: 'GitHub', link: GH + 'pg_scheduler' }
+      ],
+      projKeys: ['name', 'lang', 'what', 'details', 'published', 'link'],
+      skillsHead: ['category', 'skills'],
+      skills: [
+        ['languages', 'C, C++, SQL, Python, Java'],
+        ['databases', 'PostgreSQL, PostgreSQL extensions, PL/pgSQL, database design'],
+        ['engineering', 'OOP, SOLID, design patterns, system architecture, testing, refactoring, reading others\' code'],
+        ['tooling', 'Git, Linux, Bash, GitHub Actions, Docker, CMake, Qt, Django'],
+        ['ai tools', 'Claude Code, Codex, DeepSeek, AI-assisted development'],
+        ['also', 'mathematical programming, teamwork']
+      ],
+      eduHead: ['degree', 'university', 'years', 'note'],
+      edu: [
+        ['MSc, Software Eng.', 'AltSTU', '2026–2028', 'in progress'],
+        ['BSc, Software Eng.', 'AltSTU', '2022–2026', "with honours, straight A's"]
+      ],
+      eduNote: 'AltSTU: Polzunov Altai State Technical University',
+      langsHead: ['language', 'level'],
+      langs: [['Russian', 'native'], ['English', 'B2'], ['French', 'A2']],
+      contactsHead: ['channel', 'value'],
+      contacts: [
+        ['telegram', 'https://t.me/VictorNagibator'],
+        ['email', 'mailto:vityadonskoy2004@gmail.com'],
+        ['github', 'https://github.com/VictorNagibator'],
+        ['pdf', '\\pdf']
+      ],
+      tables: [['about_me', 'who I am'], ['projects', 'projects'], ['skills', 'skills'], ['education', 'education'], ['languages', 'languages'], ['contacts', 'contacts'], ['achievements', 'your achievements']],
+      relHead: ['Schema', 'Name', 'Type', 'Description'],
+      relTitle: 'List of relations',
+      ach: {
+        first: ['Hello, World', 'Run your first query.'],
+        rtfm: ['RTFM', 'Read the help.'],
+        explorer: ['Data Explorer', 'Look at every resume table.'],
+        where: ['Forgot WHERE', 'UPDATE without WHERE. A classic.'],
+        drop: ['Nice Try', 'Try to drop the candidate.'],
+        poly: ['Polyglot', 'Switch the language.'],
+        pdf: ['Old School', 'Download the PDF.'],
+        hire: ["Recruiter's Choice", 'Call hire(). The best one.']
+      },
+      achHead: ['', 'achievement', 'how to unlock'],
+      unlocked: 'Achievement unlocked', total: 'Total score',
+      score: 'score',
+      langSwitched: 'Language: English.',
+      pdfLinks: 'PDF: Donskoi_Viktor_CV_EN.pdf · Russian: Donskoi_Viktor_CV_RU.pdf',
+      dropErr: 'ERROR:  must be owner of candidate viktor\nHINT:  Candidates are not dropped. They are hired: SELECT hire(\'viktor\');',
+      deleteErr: 'ERROR:  cannot delete from table "skills": skills are append-only',
+      hireMsg: 'NOTICE:  Great choice! Get in touch:\n         https://t.me/VictorNagibator\n         mailto:vityadonskoy2004@gmail.com',
+      quit: 'You can\'t just quit a resume. But you can message me: https://t.me/VictorNagibator',
+      syntaxHint: 'HINT:  Type help to see the commands.',
+      noTable: 'does not exist',
+      updateHint: 'HINT:  You just updated every row. Please don\'t do this in production.',
+      insertMsg: 'INSERT 0 1\nNOTICE:  Thanks! But Telegram works better: https://t.me/VictorNagibator',
+      chips: [['about_me', 'SELECT * FROM about_me;'], ['\\dx', '\\dx'], ['projects', 'SELECT * FROM projects;'], ['skills', 'SELECT * FROM skills;'], ['education', 'SELECT * FROM education;'], ['languages', 'SELECT * FROM languages;'], ['contacts', 'SELECT * FROM contacts;'], ['achievements', 'SELECT * FROM achievements;'], ['help', 'help']]
+    }
+  };
+
+  var ACH = [
+    ['first', 'BRONZE', 10], ['rtfm', 'BRONZE', 10], ['poly', 'BRONZE', 10], ['pdf', 'BRONZE', 10],
+    ['drop', 'SILVER', 25], ['explorer', 'GOLD', 50], ['where', 'GOLD', 50], ['hire', 'PLATINUM', 300]
+  ];
+  var MEDAL = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', PLATINUM: '💎' };
+
+  /* ---------------- state ---------------- */
+  var urlLang = (new URLSearchParams(location.search).get('lang') || '').toLowerCase();
+  var lang = D[urlLang] ? urlLang : load('lang', (navigator.language || '').toLowerCase().indexOf('ru') === 0 ? 'ru' : 'en');
+  if (!D[lang]) lang = 'en';
+  var got = load('ach', {});
+  var seen = load('seen', {});
+  var hist = [], hpos = 0;
+  var busy = false;
+
+  var out = document.getElementById('out');
+  var inp = document.getElementById('in');
+  var screen = document.getElementById('screen');
+  function T() { return D[lang]; }
+
+  /* ---------------- text helpers ---------------- */
+  // Clickable command marker: \u0001cmd\u0002 (not counted in width)
+  function C(s) { return '\u0001' + s + '\u0002'; }
+  function vis(s) { return Array.from(String(s).replace(/[\u0001\u0002]/g, '')).length; }
+  function pad(s, n) { return s + ' '.repeat(Math.max(0, n - vis(s))); }
+  function center(s, n) { var l = Math.floor((n - vis(s)) / 2); return ' '.repeat(Math.max(0, l)) + pad(s, n - Math.max(0, l)); }
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function html(s) {
+    var h = esc(s);
+    h = h.replace(/\u0001([^\u0002]*)\u0002/g, function (_, c) { return '<a class="cmd" data-cmd="' + c.replace(/"/g, '&quot;') + '">' + c + '</a>'; });
+    h = h.replace(/(https?:\/\/[^\s|]+[^\s|.,)])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+    h = h.replace(/(^|[\s|])mailto:([^\s|]+)/g, '$1<a href="mailto:$2">$2</a>');
+    h = h.replace(/(Donskoi_Viktor_CV_(RU|EN)\.pdf)/g, '<a href="$1" download>$1</a>');
+    return h;
+  }
+
+  function avail() { return Math.floor((screen.clientWidth - 34) / charW()); }
+
+  function table(head, rows, title) {
+    var w = head.map(function (h, i) { return Math.max(vis(h), rows.reduce(function (m, r) { return Math.max(m, vis(r[i])); }, 0)); });
+    var last = w.length - 1;
+    var fixed = w.slice(0, last).reduce(function (a, b) { return a + b; }, 0) + 3 * last + 2;
+    // Narrow screen: wrap the last column like a multi-line psql value.
+    if (fixed + w[last] > avail() && avail() - fixed >= 12) w[last] = avail() - fixed;
+    var total = fixed + w[last];
+    var lines = [];
+    if (title) lines.push(center(title, total));
+    lines.push(' ' + head.map(function (h, i) { return center(h, w[i]); }).join(' | ') + ' ');
+    lines.push(w.map(function (n) { return '-'.repeat(n + 2); }).join('+'));
+    rows.forEach(function (r) {
+      var parts = vis(r[last]) > w[last] && r[last].indexOf('\u0001') < 0 ? wrapText(r[last], w[last]) : [r[last]];
+      parts.forEach(function (p, j) {
+        var cells = r.slice(0, last).map(function (c, i) { return pad(j === 0 ? c : '', w[i]); });
+        cells.push(j < parts.length - 1 ? pad(p, w[last]) + '+' : p);
+        lines.push((' ' + cells.join(' | ')).replace(/\s+$/, ''));
+      });
+    });
+    lines.push('(' + rows.length + (rows.length === 1 ? ' row)' : ' rows)'));
+    return lines.join('\n');
+  }
+
+  function wrapText(s, width) {
+    var words = s.split(' '), lines = [], cur = '';
+    words.forEach(function (w) {
+      if (cur && vis(cur + ' ' + w) > width) { lines.push(cur); cur = w; } else { cur = cur ? cur + ' ' + w : w; }
+    });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  function expanded(keys, records) {
+    var kw = keys.reduce(function (m, k) { return Math.max(m, vis(k)); }, 0);
+    var width = Math.max(20, Math.min(68, avail() - kw - 5));
+    var lines = [];
+    records.forEach(function (rec, i) {
+      var hdr = '-[ RECORD ' + (i + 1) + ' ]';
+      lines.push(hdr + '-'.repeat(Math.max(0, kw + 1 - hdr.length)) + '+' + '-'.repeat(width + 2));
+      keys.forEach(function (k) {
+        if (Array.isArray(rec[k]) && !rec[k].length) return;
+        var v = rec[k];
+        var parts = [];
+        (Array.isArray(v) ? v.map(function (x) { return '• ' + x; }) : [String(v)]).forEach(function (p) {
+          parts = parts.concat(wrapText(p, width));
+        });
+        if (!parts.length) parts = [''];
+        parts.forEach(function (p, j) {
+          lines.push(pad(j === 0 ? k : '', kw) + ' | ' + (j < parts.length - 1 ? pad(p, width) + ' +' : p));
+        });
+      });
+    });
+    return lines.join('\n');
+  }
+
+  var _cw = 0;
+  function charW() {
+    if (_cw) return _cw;
+    var s = document.createElement('span'); s.className = 'blk'; s.style.visibility = 'hidden'; s.textContent = 'x'.repeat(100);
+    out.appendChild(s); _cw = s.getBoundingClientRect().width / 100 || 8; out.removeChild(s);
+    return _cw;
+  }
+
+  /* ---------------- output ---------------- */
+  function print(text, cls) {
+    var pre = document.createElement('pre');
+    pre.className = 'blk' + (cls ? ' ' + cls : '');
+    pre.innerHTML = html(text);
+    out.appendChild(pre);
+  }
+  function printLines(text) {
+    // colour NOTICE/ERROR/HINT/DETAIL lines
+    text.split('\n').forEach(function (l) {
+      var c = /^(ERROR|FATAL)/.test(l) ? 'error' : /^(NOTICE|DETAIL|HINT|WARNING)/.test(l) || /^ {9}\S/.test(l) ? 'notice' : '';
+      print(l, c);
+    });
+  }
+  function gap() { var d = document.createElement('div'); d.className = 'gap'; out.appendChild(d); }
+  function echo(cmd) {
+    var pre = document.createElement('pre'); pre.className = 'blk echo wrap';
+    pre.innerHTML = '<span class="ps">resume=# </span>' + esc(cmd);
+    out.appendChild(pre);
+    lastEcho = pre;
+  }
+  var lastEcho = null;
+  function scroll() {
+    var max = screen.scrollHeight - screen.clientHeight;
+    screen.scrollTop = lastEcho ? Math.min(max, lastEcho.offsetTop - 12) : max;
+  }
+
+  /* ---------------- achievements ---------------- */
+  function score() { return ACH.reduce(function (s, a) { return s + (got[a[0]] ? a[2] : 0); }, 0); }
+  function updateScore() {
+    var n = ACH.filter(function (a) { return got[a[0]]; }).length;
+    document.getElementById('score').textContent = n ? '🏆 ' + n + '/' + ACH.length + ' · ' + T().score + ' ' + score() : '';
+  }
+  function unlock(id) {
+    if (got[id]) return;
+    got[id] = 1; save('ach', got);
+    var a = ACH.filter(function (x) { return x[0] === id; })[0];
+    var t = T().ach[id];
+    print('NOTICE:  ' + MEDAL[a[1]] + ' [' + a[1] + '] ' + T().unlocked + ': ' + t[0] + ' (+' + a[2] + ')', 'notice wrap');
+    print('DETAIL:  ' + t[1] + ' ' + T().total + ': ' + score() + '.', 'notice wrap');
+    updateScore();
+  }
+  function see(t) {
+    seen[t] = 1; save('seen', seen);
+    if (['about_me', 'projects', 'skills', 'education', 'languages', 'contacts'].every(function (k) { return seen[k]; })) unlock('explorer');
+  }
+
+  /* ---------------- commands ---------------- */
+  function cmdHelp() {
+    var t = T();
+    var w = t.help.reduce(function (m, h) { return Math.max(m, vis(h[0])); }, 0);
+    print(t.help.map(function (h) { return '  ' + C(h[0]) + ' '.repeat(w - vis(h[0]) + 3) + '-- ' + h[1]; }).join('\n'));
+    print(t.helpFoot, 'dim wrap');
+    unlock('rtfm');
+  }
+  function cmdRelations() {
+    var t = T();
+    print(table(t.relHead, t.tables.map(function (r) { return ['resume', C(r[0]), 'table', r[1]]; }), t.relTitle));
+  }
+  function cmdSelect(tbl) {
+    var t = T();
+    switch (tbl) {
+      case 'about_me': case 'about': case 'me':
+        print(table(['field', 'value'], t.about)); see('about_me'); return true;
+      case 'projects': case 'project':
+        print(expanded(t.projKeys, t.projects)); see('projects'); return true;
+      case 'extensions': case 'pg_extension':
+        cmdDx(); return true;
+      case 'skills':
+        print(table(t.skillsHead, t.skills)); see('skills'); return true;
+      case 'education':
+        print(table(t.eduHead, t.edu)); print(t.eduNote, 'dim wrap'); see('education'); return true;
+      case 'languages': case 'language':
+        print(table(t.langsHead, t.langs)); see('languages'); return true;
+      case 'contacts': case 'contact':
+        print(table(t.contactsHead, t.contacts.map(function (r) { return [r[0], r[1] === '\\pdf' ? C('\\pdf') : r[1]]; }))); see('contacts'); return true;
+      case 'achievements':
+        print(table(t.achHead, ACH.map(function (a) {
+          var tt = t.ach[a[0]];
+          return [got[a[0]] ? MEDAL[a[1]] : '🔒', got[a[0]] ? tt[0] : '???', tt[1]];
+        })));
+        print(t.total + ': ' + score(), 'notice');
+        return true;
+    }
+    return false;
+  }
+  function cmdDx() {
+    var t = T();
+    print(table(t.dxHead, t.dx.map(function (r) { return r; }), t.dxTitle));
+    print('-- ' + C('SELECT * FROM projects;'), 'dim');
+  }
+  function cmdPdf() {
+    print(T().pdfLinks, 'wrap');
+    var a = document.createElement('a'); a.href = T().pdf; a.download = T().pdf; document.body.appendChild(a); a.click(); a.remove();
+    unlock('pdf');
+  }
+  function setLang(l, announce) {
+    if (!D[l]) return;
+    var changed = l !== lang;
+    lang = l; save('lang', l);
+    applyUI();
+    if (announce) { print(T().langSwitched); if (changed) { unlock('poly'); gap(); cmdSelect('about_me'); } }
+  }
+
+  function run(raw) {
+    var cmd = raw.trim();
+    echo(raw);
+    if (!cmd) { scroll(); return; }
+    hist.push(cmd); hpos = hist.length;
+    unlock('first');
+    var s = cmd.replace(/;+\s*$/, '').trim();
+    var low = s.toLowerCase().replace(/\s+/g, ' ');
+    var t = T();
+    var m;
+
+    if (low === 'help' || low === '\\?' || low === '\\h' || low === 'помощь' || low === '?') cmdHelp();
+    else if (low === 'clear' || low === '\\! clear' || low === 'cls') { out.innerHTML = ''; lastEcho = null; }
+    else if (low === '\\d' || low === '\\dt' || low === '\\dt+' || low === '\\d+') cmdRelations();
+    else if (low === '\\dx' || low === '\\dx+') cmdDx();
+    else if (low === '\\l') print(table(['Name', 'Owner', 'Encoding'], [['resume', 'viktor', 'UTF8']], 'List of databases'));
+    else if (low === '\\pdf' || low === 'pdf') cmdPdf();
+    else if ((m = low.match(/^\\lang\s+(ru|en)$/)) || (m = low.match(/^set\s+lang(?:uage)?\s*(?:=|to)\s*'?(ru|en)'?$/))) setLang(m[1], true);
+    else if (low === '\\lang') print('\\lang ru | \\lang en');
+    else if (low === '\\q' || low === 'exit' || low === 'quit') print(t.quit, 'wrap');
+    else if (low === '\\conninfo') print('You are connected to database "resume" as user "recruiter" via socket in "/var/run/hope".', 'wrap');
+    else if (/^select\s+version\s*\(\s*\)$/.test(low)) print(table(['version'], [['PostgreSQL 19.1 (Viktor edition) on x86_64-pc-linux-gnu, compiled with love']]));
+    else if (/^select\s+1$/.test(low)) print(table(['?column?'], [['1']]));
+    else if (/^select\s+now\s*\(\s*\)$/.test(low)) print(table(['now'], [[new Date().toISOString().replace('T', ' ').slice(0, 19) + '+00 (a good time to hire)']]));
+    else if (/\bhire\b/.test(low)) { printLines(t.hireMsg); unlock('hire'); }
+    else if ((m = low.match(/^(?:select|table)\s+(?:.+?\s+from\s+)?([a-z_\.]+)(\s+where\b.*)?(\s+order\b.*)?(\s+limit\b.*)?$/)) ) {
+      var tbl = m[1].replace(/^(resume|public)\./, '');
+      if (!cmdSelect(tbl)) print('ERROR:  relation "' + tbl + '" ' + t.noTable + '\n' + t.syntaxHint, 'error wrap');
+    }
+    else if (/^update\b/.test(low)) {
+      if (/\bwhere\b/.test(low)) print('UPDATE 0');
+      else { print('UPDATE 1042'); print(t.updateHint, 'notice wrap'); unlock('where'); }
+    }
+    else if (/^(drop|truncate)\b/.test(low)) { printLines(t.dropErr); unlock('drop'); }
+    else if (/^delete\b/.test(low)) { printLines(t.deleteErr); if (!/\bwhere\b/.test(low)) unlock('where'); }
+    else if (/^insert\b/.test(low)) printLines(t.insertMsg);
+    else if (/^(begin|commit|rollback)$/.test(low)) print(low.toUpperCase());
+    else {
+      var tok = s.split(/\s+/)[0];
+      print('ERROR:  syntax error at or near "' + tok + '"\nLINE 1: ' + s + '\n        ^\n' + t.syntaxHint, 'error wrap');
+    }
+    gap();
+    scroll();
+  }
+
+  /* typing effect for clicks */
+  function type(cmd) {
+    if (busy) return;
+    busy = true; inp.value = '';
+    var i = 0;
+    var speed = Math.max(8, Math.min(28, 600 / cmd.length));
+    (function step() {
+      if (i <= cmd.length) { inp.value = cmd.slice(0, i++); setTimeout(step, speed); }
+      else { inp.value = ''; run(cmd); busy = false; inp.focus({ preventScroll: true }); }
+    })();
+  }
+
+  /* ---------------- UI ---------------- */
+  function applyUI() {
+    var t = T();
+    document.documentElement.lang = t.htmlLang;
+    document.getElementById('h-name').textContent = t.name;
+    document.getElementById('h-role').textContent = t.role;
+    var pdf = document.getElementById('pdf-btn'); pdf.href = t.pdf; pdf.setAttribute('download', t.pdf);
+    document.querySelectorAll('[data-lang]').forEach(function (b) { b.classList.toggle('on', b.dataset.lang === lang); });
+    var chips = document.getElementById('chips');
+    chips.innerHTML = '<span class="lbl">' + esc(t.try) + '</span>';
+    t.chips.forEach(function (c) {
+      var b = document.createElement('button'); b.className = 'chip'; b.textContent = c[0]; b.title = c[1];
+      b.addEventListener('click', function () { type(c[1]); });
+      chips.appendChild(b);
+    });
+    document.getElementById('foot').textContent = t.foot;
+    updateScore();
+  }
+
+  document.querySelectorAll('[data-lang]').forEach(function (b) {
+    b.addEventListener('click', function () { if (b.dataset.lang !== lang) type('\\lang ' + b.dataset.lang); });
+  });
+  document.getElementById('pdf-btn').addEventListener('click', function () { unlock('pdf'); });
+
+  out.addEventListener('click', function (e) {
+    var a = e.target.closest('a.cmd');
+    if (a) { e.preventDefault(); type(a.dataset.cmd); }
+  });
+  screen.addEventListener('click', function () {
+    if (!window.getSelection().toString()) inp.focus({ preventScroll: true });
+  });
+
+  var COMPLETE = ['SELECT * FROM ', 'about_me;', 'projects;', 'skills;', 'education;', 'languages;', 'contacts;', 'achievements;', 'help', 'clear', '\\dx', '\\d', '\\pdf', '\\lang ru', '\\lang en',"SELECT hire('viktor');"];
+  inp.addEventListener('keydown', function (e) {
+    if (busy) { e.preventDefault(); return; }
+    if (e.key === 'Enter') { var v = inp.value; inp.value = ''; run(v); }
+    else if (e.key === 'ArrowUp') { if (hpos > 0) { inp.value = hist[--hpos]; } e.preventDefault(); }
+    else if (e.key === 'ArrowDown') { if (hpos < hist.length) { hpos++; inp.value = hist[hpos] || ''; } e.preventDefault(); }
+    else if (e.key === 'Tab') {
+      e.preventDefault();
+      var v = inp.value, word = v.split(/\s+/).pop().toLowerCase();
+      var opts = COMPLETE.filter(function (c) { return v && (c.toLowerCase().indexOf(v.toLowerCase()) === 0 || (word && c.toLowerCase().indexOf(word) === 0)); });
+      if (opts.length === 1) inp.value = opts[0].toLowerCase().indexOf(v.toLowerCase()) === 0 ? opts[0] : v.slice(0, v.length - word.length) + opts[0];
+      else if (opts.length > 1) { echo(v); print(opts.join('   '), 'dim wrap'); scroll(); }
+    }
+    else if (e.key === 'l' && e.ctrlKey) { e.preventDefault(); out.innerHTML = ''; }
+  });
+
+  /* ---------------- boot ---------------- */
+  applyUI();
+  print(T().banner, 'dim wrap');
+  gap();
+  setTimeout(function () { type('SELECT * FROM about_me;'); }, 400);
+})();
+</script>
+</body>
+</html>
